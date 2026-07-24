@@ -1,0 +1,29 @@
+[project]
+name = "intelligent-portfolio-construction-engine"
+version = "0.1.0"
+description = "A modular framework for portfolio optimization, asset allocation, and quantitative risk management."
+readme = "README.md"
+requires-python = ">=3.13"
+
+dependencies = [
+    "matplotlib>=3.11.1",
+    "numpy>=2.5.1",
+    "pandas>=3.0.3",
+    "scipy>=1.18.0",
+    "ta>=0.11.0",
+    "yfinance>=1.5.1",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=2.3.0",
+    "pytest>=9.1.1",
+    "ruff>=0.15.22",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
