@@ -16,3 +16,12 @@ class YahooProvider(MarketDataProvider):
             raise ValueError(f"No market data found for : {symbols}")
         
         return data
+    
+    def get_asset_info(self, symbol):
+
+        ticker = yf.Ticker(symbol)
+        info = ticker.info
+
+        return {
+            "sector": info.get("sector"),
+            "industry": info.get("industry")}

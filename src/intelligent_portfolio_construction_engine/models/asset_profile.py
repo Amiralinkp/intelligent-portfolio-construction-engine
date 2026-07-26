@@ -9,7 +9,9 @@ class AssetProfile:
 
     features : FeatureSet
 
-    score: float = 0.0
+    sector : str
+
+    score : float = 0.0
 
     rank: int | None = None
 

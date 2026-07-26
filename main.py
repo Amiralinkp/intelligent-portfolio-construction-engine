@@ -29,7 +29,10 @@ assets = splitter.split_assets(data)
 settings = Settings()
 
 feature_engine = FeatureEngine(settings)
-analyzer = AssetAnalyzer(feature_engine)
+
+analyzer = AssetAnalyzer(
+    feature_engine=feature_engine,
+    provider=provider)
 
 
 profiles = []
@@ -42,16 +45,12 @@ for symbol, asset_df in assets.items():
 
 
 weights = [
-    0.10,  # daily_return
-    0.30,  # annual_return
-    0.15,  # volatility
+    0.15,  # daily_return
+    0.35,  # annual_return
+    0.20,  # volatility
     0.15,  # max_drawdown
-    0.07,  # roc
-    0.05,  # atr
-    0.05,  # rsi
-    0.05,  # macd
-    0.03,  # macd_signal
-    0.05,  # macd_hist
+    0.10,  # roc
+    0.05  # atr
 ]
 
 

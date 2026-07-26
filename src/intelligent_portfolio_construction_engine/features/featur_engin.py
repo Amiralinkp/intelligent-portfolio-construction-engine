@@ -56,7 +56,7 @@ class FeatureEngine:
     
     def _annual_return(self, daily_ret):
 
-        return (1 + daily_ret.mean())**252 - 1
+        return (1 + daily_ret).prod() ** (252 / len(daily_ret)) - 1
     
     def _max_drawdown(self, asset_df):
 

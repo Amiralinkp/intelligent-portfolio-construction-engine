@@ -24,11 +24,7 @@ class FeatureScorer:
                    features.volatility,
                    features.max_drawdown,
                    features.roc,
-                   features.atr,
-                   features.rsi,
-                   features.macd,
-                   features.macd_signal,
-                   features.macd_hist]
+                   features.atr]
             
             feature_matrix.append(row)
         
