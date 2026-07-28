@@ -15,3 +15,7 @@ class PortfolioConfig:
     capital: float
     
     objective: PortfolioObjective
+
+    
+
+

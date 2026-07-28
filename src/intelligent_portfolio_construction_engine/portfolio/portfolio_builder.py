@@ -8,3 +8,9 @@ class PortfolioBuilder:
 
         self.profiles = profiles
         self.config = config
+
+
+    def determine_asset_count(self):
+
+            ...            
+    
