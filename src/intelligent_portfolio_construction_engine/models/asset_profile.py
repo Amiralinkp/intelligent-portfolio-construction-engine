@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import pandas as pd
 from intelligent_portfolio_construction_engine.models.feature_set import FeatureSet
 
 
@@ -16,3 +17,5 @@ class AssetProfile:
     rank: int | None = None
 
     recommendation : str | None = None
+
+    historical_data: pd.DataFrame

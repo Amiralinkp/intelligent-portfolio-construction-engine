@@ -16,6 +16,4 @@ class PortfolioConfig:
     
     objective: PortfolioObjective
 
-    
-
 
