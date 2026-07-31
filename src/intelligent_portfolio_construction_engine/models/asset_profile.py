@@ -12,10 +12,12 @@ class AssetProfile:
 
     sector : str
 
+    historical_data: pd.DataFrame
+
     score : float = 0.0
 
     rank: int | None = None
 
     recommendation : str | None = None
 
-    historical_data: pd.DataFrame
+    

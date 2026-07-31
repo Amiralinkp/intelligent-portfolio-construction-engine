@@ -17,6 +17,7 @@ class AssetAnalyzer:
         profile = AssetProfile(
                             symbol=symbol,
                             sector=asset_info["sector"],
-                            features=features)
+                            features=features,
+                            historical_data=asset_df)
         
         return profile

@@ -16,4 +16,7 @@ class PortfolioConfig:
     
     objective: PortfolioObjective
 
+    expected_return_method: str = "capm"
+
+    optimization_method: str = "max_sharpe"
 

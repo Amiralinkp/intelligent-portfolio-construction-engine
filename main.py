@@ -4,6 +4,9 @@ from intelligent_portfolio_construction_engine.config.setting import Settings
 from intelligent_portfolio_construction_engine.features.featur_engin import FeatureEngine
 from intelligent_portfolio_construction_engine.analysis.asset_analyzer import AssetAnalyzer
 from intelligent_portfolio_construction_engine.scoring.feature_scorer import FeatureScorer
+from intelligent_portfolio_construction_engine.models.portfolio_config import PortfolioConfig, PortfolioObjective
+from intelligent_portfolio_construction_engine.portfolio.selection_policy import PortfolioSelectionPolicy
+from intelligent_portfolio_construction_engine.portfolio.portfolio_builder import PortfolioBuilder
 
 
 provider = YahooProvider()
@@ -61,6 +64,30 @@ scorer = FeatureScorer(
 
 ranked_profiles = scorer.score()
 
+config = PortfolioConfig(
+    capital=25000,
+    objective=PortfolioObjective.BALANCED,
+)
+builder = PortfolioBuilder(
+    profiles=ranked_profiles,
+    config=config,
+)
 
-for profile in ranked_profiles:
-    print(profile)
+assets, weights, metrics = builder.build()
+
+print("\nSelected Assets")
+
+
+for asset in assets:
+    print(asset.symbol)
+
+
+print("\nWeights")
+for symbol, weight in weights.items():
+    print(f"{symbol}: {weight:.2%}")
+
+
+print("\nMetrics")
+print(f"Expected Return : {metrics.expected_return:.2%}")
+print(f"Volatility      : {metrics.volatility:.2%}")
+print(f"Sharpe Ratio    : {metrics.sharpe_ratio:.2f}")

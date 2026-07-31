@@ -1,5 +1,7 @@
 from intelligent_portfolio_construction_engine.models.portfolio_config import PortfolioConfig
 from intelligent_portfolio_construction_engine.portfolio.selection_policy import PortfolioSelectionPolicy
+from intelligent_portfolio_construction_engine.portfolio.weight_allocator import WeightAllocator
+
 
 class PortfolioBuilder:
 
@@ -17,5 +19,10 @@ class PortfolioBuilder:
         optional_assets = policy.select_optional_assets(core_assets)
         final_assets = core_assets + optional_assets
 
-        return final_assets
-    
+        allocator = WeightAllocator(
+        profiles=final_assets,
+        config=self.config)
+
+        weights, metrics = allocator.allocate()
+
+        return final_assets, weights, metrics    

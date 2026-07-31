@@ -3,6 +3,8 @@ from pypfopt import risk_models
 from pypfopt import expected_returns
 from pypfopt import EfficientFrontier
 from intelligent_portfolio_construction_engine.models.portfolio_config import PortfolioObjective
+from intelligent_portfolio_construction_engine.models.portfolio_metrics import PortfolioMetrics
+from intelligent_portfolio_construction_engine.portfolio.selection_policy import PortfolioSelectionPolicy
 
 class WeightAllocator:
 
@@ -11,7 +13,18 @@ class WeightAllocator:
         self.profiles = profiles
         self.config = config
 
-    def allocate(self):...
+    def allocate(self):
+
+        ef = self.optimize()
+        weights = ef.clean_weights()
+        expected_return, volatility, sharpe_ratio = ef.portfolio_performance()
+
+        metrics = PortfolioMetrics(
+        expected_return=expected_return,
+        volatility=volatility,
+        sharpe_ratio=sharpe_ratio)
+
+        return weights, metrics
 
 
 
@@ -72,6 +85,12 @@ class WeightAllocator:
         covariance = self.covariance_matrix()
 
         ef = EfficientFrontier(mu, covariance)
+        min_weight, max_weight = self.get_weight_limits()
+
+
+        ef.add_constraint(lambda w: w >= min_weight)
+        ef.add_constraint(lambda w: w <= max_weight)
+
 
         if self.config.objective == PortfolioObjective.RISK_AVERSE:
             ef.min_volatility()
@@ -82,7 +101,31 @@ class WeightAllocator:
         elif self.config.objective == PortfolioObjective.RETURN_FOCUSED:
             ef.max_quadratic_utility()
 
+
         return ef
+    
+    def get_weight_limits(self): 
+
+        policy = PortfolioSelectionPolicy(profiles=self.profiles, config=self.config)
+
+        budget = policy.get_capital()
+
+        if budget=="small" : 
+            min_weight = 0.15
+            max_weight = 0.45
+
+        elif budget == "medium":
+            min_weight = 0.1
+            max_weight = 0.35
+
+        elif budget=="large":
+            min_weight = 0.05
+            max_weight = 0.25
+
+        else:
+            raise ValueError("weight_allactor is not responding")
+
+        return min_weight, max_weight
 
 
 
