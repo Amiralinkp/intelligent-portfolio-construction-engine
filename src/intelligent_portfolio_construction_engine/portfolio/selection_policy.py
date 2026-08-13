@@ -73,8 +73,8 @@ class PortfolioSelectionPolicy:
 
 
     def select_optional_assets(self, core_profiles):
-        core_scores = [profile.score for profile in core_profiles]
-        core_scores_mean = sum(core_scores) / len(core_scores)
+        # core_scores = [profile.score for profile in core_profiles]
+        # core_scores_mean = sum(core_scores) / len(core_scores)
         _, optional_assets = self.get_asset_limits()
 
         optional_profiles = []
@@ -84,8 +84,9 @@ class PortfolioSelectionPolicy:
             if profile in core_profiles:
                 continue
 
-            if profile.score > core_scores_mean:
-                optional_profiles.append(profile)
+            # if profile.score > core_scores_mean:
+
+            optional_profiles.append(profile)
 
             if len(optional_profiles) >= optional_assets:
                 break

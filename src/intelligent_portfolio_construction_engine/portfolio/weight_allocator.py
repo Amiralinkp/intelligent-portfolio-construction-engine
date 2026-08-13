@@ -17,6 +17,7 @@ class WeightAllocator:
 
         ef = self.optimize()
         weights = ef.clean_weights()
+
         expected_return, volatility, sharpe_ratio = ef.portfolio_performance()
 
         metrics = PortfolioMetrics(

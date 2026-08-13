@@ -1,7 +1,7 @@
 from intelligent_portfolio_construction_engine.models.portfolio_config import PortfolioConfig
 from intelligent_portfolio_construction_engine.portfolio.selection_policy import PortfolioSelectionPolicy
 from intelligent_portfolio_construction_engine.portfolio.weight_allocator import WeightAllocator
-
+from intelligent_portfolio_construction_engine.portfolio.discrete import DiscreteAllocator
 
 class PortfolioBuilder:
 
@@ -25,4 +25,11 @@ class PortfolioBuilder:
 
         weights, metrics = allocator.allocate()
 
-        return final_assets, weights, metrics    
+        discrete_allocator = DiscreteAllocator(
+        profiles=final_assets,
+        weights=weights,
+        capital=self.config.capital)
+
+        shares, cash = discrete_allocator.allocate()
+        
+        return final_assets, weights, shares, cash, metrics

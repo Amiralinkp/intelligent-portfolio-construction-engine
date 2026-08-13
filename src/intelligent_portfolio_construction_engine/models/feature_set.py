@@ -25,3 +25,9 @@ class FeatureSet:
     macd_signal : float
 
     macd_hist : float
+
+    sharpe_ratio: float
+
+    sortino_ratio: float
+
+    cagr: float

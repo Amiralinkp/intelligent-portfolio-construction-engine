@@ -18,6 +18,7 @@ symbols = [
     "GOOG",
     "AMZN",
     "NVDA",
+    "META"
 ]
 
 
@@ -46,34 +47,26 @@ for symbol, asset_df in assets.items():
 
     profiles.append(profile)
 
-
-weights = [
-    0.15,  # daily_return
-    0.35,  # annual_return
-    0.20,  # volatility
-    0.15,  # max_drawdown
-    0.10,  # roc
-    0.05  # atr
-]
-
+config = PortfolioConfig(
+    capital=2500,
+    objective=PortfolioObjective.RETURN_FOCUSED)
 
 scorer = FeatureScorer(
     profiles=profiles,
-    weights=weights,
-)
+    config=config)
 
 ranked_profiles = scorer.score()
 
-config = PortfolioConfig(
-    capital=25000,
-    objective=PortfolioObjective.BALANCED,
-)
 builder = PortfolioBuilder(
     profiles=ranked_profiles,
-    config=config,
-)
+    config=config,)
 
-assets, weights, metrics = builder.build()
+assets, weights, shares, cash, metrics = builder.build()
+
+print("\nShares")
+
+for symbol, quantity in shares.items():
+    print(f"{symbol}: {quantity}")
 
 print("\nSelected Assets")
 
@@ -91,3 +84,22 @@ print("\nMetrics")
 print(f"Expected Return : {metrics.expected_return:.2%}")
 print(f"Volatility      : {metrics.volatility:.2%}")
 print(f"Sharpe Ratio    : {metrics.sharpe_ratio:.2f}")
+print(f"\nRemaining Cash: ${cash:.2f}")
+
+
+
+for profile in profiles:
+
+    f = profile.features
+
+    print(f"\n{profile.symbol}")
+
+    print(f"Annual Return : {f.annual_return:.2%}")
+    print(f"CAGR          : {f.cagr:.2%}")
+    print(f"Volatility    : {f.volatility:.2%}")
+    print(f"Max Drawdown  : {f.max_drawdown:.2%}")
+    print(f"Sharpe        : {f.sharpe_ratio:.2f}")
+    print(f"Sortino       : {f.sortino_ratio:.2f}")
+    print(f"ROC           : {f.roc:.2f}")
+    print(f"RSI           : {f.rsi:.2f}")
+    print(f"ATR           : {f.atr:.2f}")

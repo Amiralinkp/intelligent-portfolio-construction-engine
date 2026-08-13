@@ -3,6 +3,7 @@ from ta.momentum import RSIIndicator, ROCIndicator
 from ta.volatility import AverageTrueRange
 from ta.trend import MACD
 from intelligent_portfolio_construction_engine.config.setting import Settings
+import numpy as np 
 
 
 class FeatureEngine:
@@ -16,6 +17,7 @@ class FeatureEngine:
         self.macd_fast = settings.MACD_FAST
         self.macd_slow = settings.MACD_SLOW
         self.macd_signal = settings.MACD_SIGNAL
+        
 
 
 
@@ -27,7 +29,11 @@ class FeatureEngine:
         daily_return = self._daily_return(daily_ret)
 
         annual_return = self._annual_return(daily_ret)
+        cagr = self._cagr(asset_df)
         volatility = self._volatility(daily_ret)
+
+        sharpe_ratio = self._sharpe_ratio(daily_ret)
+        sortino_ratio = self._sortino_ratio(daily_ret)
 
         max_drawdown = self._max_drawdown(asset_df)
         roc = self._roc(asset_df)
@@ -47,7 +53,10 @@ class FeatureEngine:
             atr = atr,
             macd = macd,
             macd_signal = macd_signal,
-            macd_hist = macd_hist)
+            macd_hist = macd_hist,
+            cagr=cagr,
+            sharpe_ratio=sharpe_ratio,
+            sortino_ratio=sortino_ratio)
     
     def _daily_return(self, daily_ret):
 
@@ -140,3 +149,49 @@ class FeatureEngine:
             window_sign=self.macd_signal)
         
         return indicator.macd_diff().iloc[-1]
+
+
+    def _cagr(self, asset_df):
+
+        start_price = asset_df["Close"].iloc[0]
+        end_price = asset_df["Close"].iloc[-1]
+        years = len(asset_df) / 252
+
+        cagr = (end_price / start_price) ** (1 / years) - 1
+
+        return cagr
+
+
+    def _sharpe_ratio(self, daily_ret):
+
+        risk_free_rate = 0.02
+
+        annual_mean_return = daily_ret.mean() * 252
+        
+        annual_volatility = daily_ret.std(ddof=0) * np.sqrt(252)
+        if annual_volatility==0:
+                    return 0 
+
+        sharpe = (annual_mean_return - risk_free_rate) / annual_volatility
+
+        return sharpe
+
+
+    def _sortino_ratio(self, daily_ret):
+
+        risk_free_rate = 0.02
+
+        annual_mean_return = daily_ret.mean() * 252
+
+        daily_rf = risk_free_rate / 252
+        downside = daily_ret[daily_ret < daily_rf] 
+        if downside.empty:
+            return 0 
+              
+        downside_std = downside.std(ddof=0) * np.sqrt(252)
+        if downside_std == 0:
+            return 0
+
+        sortino = (annual_mean_return - risk_free_rate) / downside_std
+
+        return sortino
