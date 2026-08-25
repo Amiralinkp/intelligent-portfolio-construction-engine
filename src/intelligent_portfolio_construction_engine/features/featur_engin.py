@@ -17,6 +17,10 @@ class FeatureEngine:
         self.macd_fast = settings.MACD_FAST
         self.macd_slow = settings.MACD_SLOW
         self.macd_signal = settings.MACD_SIGNAL
+
+        self.sma_short_window = settings.SMA_SHORT_WINDOW
+        self.sma_long_window = settings.SMA_LONG_WINDOW
+        self.dollar_volume_window = settings.DOLLAR_VOLUME_WINDOW
         
 
 
@@ -39,10 +43,19 @@ class FeatureEngine:
         roc = self._roc(asset_df)
         rsi = self._rsi(asset_df)
         atr = self._atr(asset_df)
-        macd = self._macd(asset_df)
-        macd_signal = self._macd_signal(asset_df)
-        macd_hist = self._macd_hist(asset_df)
+        current_drawdown = self._current_drawdown(asset_df)
 
+        sma_50 = self._sma(asset_df, self.sma_short_window)
+        sma_200 = self._sma(asset_df, self.sma_long_window)
+
+        price = asset_df["Close"].iloc[-1]
+
+        price_vs_sma_50 = (price / sma_50) - 1
+        price_vs_sma_200 = (price / sma_200) - 1
+
+        average_dollar_volume = self._average_dollar_volume(asset_df)
+
+        macd, macd_signal, macd_hist = self._macd_features(asset_df)
         return FeatureSet(
             daily_return=daily_return,
             annual_return=annual_return,
@@ -56,7 +69,13 @@ class FeatureEngine:
             macd_hist = macd_hist,
             cagr=cagr,
             sharpe_ratio=sharpe_ratio,
-            sortino_ratio=sortino_ratio)
+            sortino_ratio=sortino_ratio,
+            current_drawdown=current_drawdown,
+            sma_50=sma_50,
+            sma_200=sma_200,
+            price_vs_sma_50=price_vs_sma_50,
+            price_vs_sma_200=price_vs_sma_200,
+            average_dollar_volume=average_dollar_volume)
     
     def _daily_return(self, daily_ret):
 
@@ -127,29 +146,19 @@ class FeatureEngine:
 
         return indicator.macd().iloc[-1]
 
-    def _macd_signal(self, asset_df):
-        close = asset_df["Close"]
+    def _macd_features(self, asset_df):
 
         indicator = MACD(
-            close=close,
+            close=asset_df["Close"],
             window_fast=self.macd_fast,
             window_slow=self.macd_slow,
             window_sign=self.macd_signal)
 
-        return indicator.macd_signal().iloc[-1]
+        macd = indicator.macd().iloc[-1]
+        signal = indicator.macd_signal().iloc[-1]
+        histogram = indicator.macd_diff().iloc[-1]
 
-    def _macd_hist(self, asset_df):
-
-        close = asset_df["Close"]
-
-        indicator = MACD(
-            close=close,
-            window_fast=self.macd_fast,
-            window_slow=self.macd_slow,
-            window_sign=self.macd_signal)
-        
-        return indicator.macd_diff().iloc[-1]
-
+        return macd, signal, histogram
 
     def _cagr(self, asset_df):
 
@@ -195,3 +204,21 @@ class FeatureEngine:
         sortino = (annual_mean_return - risk_free_rate) / downside_std
 
         return sortino
+
+    def _current_drawdown(self, asset_df):
+
+        close = asset_df["Close"]
+        current_price = close.iloc[-1]
+        current_peak = close.cummax().iloc[-1]
+
+        return (current_peak - current_price) / current_peak
+
+    def _sma(self, asset_df, window):
+
+        return asset_df["Close"].rolling(window=window).mean().iloc[-1]
+
+
+    def _average_dollar_volume(self, asset_df):
+
+        dollar_volume = asset_df["Close"] * asset_df["Volume"]
+        return dollar_volume.tail(self.dollar_volume_window).mean()

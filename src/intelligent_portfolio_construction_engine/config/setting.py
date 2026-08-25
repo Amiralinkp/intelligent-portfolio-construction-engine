@@ -14,3 +14,4 @@ class Settings:
     MACD_FAST : int = 12
     MACD_SLOW : int = 26
     MACD_SIGNAL : int = 9
+    HISTORICAL_LOOKBACK_YEARS: int = 6
