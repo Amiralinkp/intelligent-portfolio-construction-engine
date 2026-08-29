@@ -1,7 +1,5 @@
-
 from dataclasses import dataclass
-
-
+from .seasonal_context import SeasonalContext
 
 @dataclass
 class HistoricalContext:
@@ -23,3 +21,6 @@ class HistoricalContext:
     return_percentile: float
     sharpe_percentile: float
     sortino_percentile: float
+
+    # Seasonal Historical Context
+    seasonal_context: SeasonalContext

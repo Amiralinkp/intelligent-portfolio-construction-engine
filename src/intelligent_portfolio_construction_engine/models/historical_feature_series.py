@@ -13,6 +13,7 @@ class HistoricalFeatureSeries:
     atr: pd.Series
     drawdown: pd.Series
     sharpe_ratio: pd.Series
+    sortino_ratio: pd.Series
     sma_50: pd.Series
     sma_200: pd.Series
 
