@@ -31,9 +31,7 @@ def detect_drawdown_episodes(asset_df):
         if not in_drawdown and value > 0:
             in_drawdown = True
 
-            peak_date = peak.index[
-                drawdown.index.get_loc(date) - 1
-            ]
+            peak_date = peak.index[drawdown.index.get_loc(date) - 1]
 
             peak_price = peak.loc[peak_date]
 
@@ -105,7 +103,8 @@ def detect_drawdown_episodes(asset_df):
             
     if in_drawdown:
 
-        recovery_levels = calculate_recovery_levels(asset_df=asset_df, trough_date=trough_date, trough_price=trough_price, peak_price=peak_price)
+        recovery_levels = calculate_recovery_levels(
+            asset_df=asset_df, trough_date=trough_date, trough_price=trough_price, peak_price=peak_price)
 
         episodes.append(
             DrawdownEpisode(
@@ -115,46 +114,37 @@ def detect_drawdown_episodes(asset_df):
                 peak_price=peak_price,
                 trough_price=trough_price,
                 magnitude=max_drawdown,
-                drawdown_duration=(
-                    trough_date - peak_date
-                ).days,
+                drawdown_duration=(trough_date - peak_date).days,
 
                 recovery_25_date=recovery_levels[25],
                 recovery_25_time=(
                     (recovery_levels[25] - trough_date).days
                     if recovery_levels[25] is not None
-                    else None
-                ),
+                    else None),
 
                 recovery_50_date=recovery_levels[50],
                 recovery_50_time=(
                     (recovery_levels[50] - trough_date).days
                     if recovery_levels[50] is not None
-                    else None
-                ),
+                    else None),
 
                 recovery_70_date=recovery_levels[70],
                 recovery_70_time=(
                     (recovery_levels[70] - trough_date).days
                     if recovery_levels[70] is not None
-                    else None
-                ),
+                    else None),
 
                 recovery_90_date=recovery_levels[90],
                 recovery_90_time=(
                     (recovery_levels[90] - trough_date).days
                     if recovery_levels[90] is not None
-                    else None
-                ),
+                    else None),
 
                 recovery_100_date=recovery_levels[100],
                 recovery_100_time=(
                     (recovery_levels[100] - trough_date).days
                     if recovery_levels[100] is not None
-                    else None
-                ),
-            )
-        )
+                    else None)))
 
     return episodes
 
