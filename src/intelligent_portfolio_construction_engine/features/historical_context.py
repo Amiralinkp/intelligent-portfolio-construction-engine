@@ -7,7 +7,10 @@ from ta.trend import MACD
 from ta.volatility import AverageTrueRange
 from intelligent_portfolio_construction_engine.models.historical_feature_series import HistoricalFeatureSeries
 from intelligent_portfolio_construction_engine.utils.statistics import calculate_percentile
-from intelligent_portfolio_construction_engine.models.seasonal_context import SeasonalComparison, SeasonalContext
+from intelligent_portfolio_construction_engine.models.seasonal_context import SeasonalComparison, SeasonalContext, SeasonalBehavior
+from intelligent_portfolio_construction_engine.models.historical_analysis import HistoricalAnalysis
+from intelligent_portfolio_construction_engine.analysis.drawdown_analysis import detect_drawdown_episodes
+from intelligent_portfolio_construction_engine.analysis.drawdown_statistics import calculate_drawdown_statistics
 
 
 class HistoricalContextEngine:
@@ -19,11 +22,12 @@ class HistoricalContextEngine:
     def analyze(self, asset_df, features: FeatureSet):
 
         historical_series = self.build_feature_series(asset_df)
-        seasonal_context = self.build_seasonal_context(historical_series.returns)
+        seasonal_context = self.build_seasonal_context(historical_series)
         historical_context = self.calculate_percentiles(historical_series, features, seasonal_context)
-
+        
         return historical_context
 
+    
     def build_feature_series(self, asset_df):
 
         close = asset_df["Close"]
@@ -238,10 +242,87 @@ class HistoricalContextEngine:
 
         return period_returns
 
-    def build_seasonal_context(self, returns):
+    def build_seasonal_behavior(self, historical_series):
+
+        returns = historical_series.returns
+        volatility = historical_series.volatility
+        drawdown = historical_series.drawdown
+        liquidity = historical_series.average_dollar_volume
+
+        current_year = returns.index[-1].year
+
+        seasonal_behavior = []
+
+        for quarter in range(1, 5):
+
+            quarter_returns = []
+            quarter_volatility = []
+            quarter_sharpe = []
+            quarter_sortino = []
+            quarter_drawdown = []
+            quarter_positive_rate = []
+            quarter_liquidity = []
+
+            for year_offset in range(1, self.lookback_years + 1):
+
+                historical_year = current_year - year_offset
+                historical_returns = self.get_quarter_returns(returns, historical_year, quarter)
+
+                if historical_returns.empty:
+                    continue
+
+                quarter_returns.append((1 + historical_returns).prod() - 1)
+
+                historical_volatility = volatility[volatility.index.isin(historical_returns.index)].dropna()
+
+                if not historical_volatility.empty:
+                    quarter_volatility.append(historical_volatility.mean())
+
+                quarter_sharpe.append(self.calculate_sharpe(historical_returns))
+
+                quarter_sortino.append(self.calculate_sortino(historical_returns))
+
+                historical_drawdown = drawdown[drawdown.index.isin(historical_returns.index)].dropna()
+
+                if not historical_drawdown.empty:
+                    quarter_drawdown.append(historical_drawdown.max())
+
+                quarter_positive_rate.append((historical_returns > 0).mean() * 100)
+
+                historical_liquidity = liquidity[liquidity.index.isin(historical_returns.index)].dropna()
+
+                if not historical_liquidity.empty:
+                    quarter_liquidity.append(historical_liquidity.mean())
+
+            if not quarter_returns:
+                continue
+
+            seasonal_behavior.append(
+                SeasonalBehavior(
+                    season=quarter,
+                    average_return=np.mean(quarter_returns),
+                    average_volatility=np.mean(quarter_volatility),
+                    average_sharpe=np.mean(quarter_sharpe),
+                    average_sortino=np.mean(quarter_sortino),
+                    average_max_drawdown=np.mean(quarter_drawdown),
+                    average_positive_return_rate=np.mean(quarter_positive_rate),
+                    average_liquidity=np.mean(quarter_liquidity),
+                    average_distance_from_peak=np.mean(quarter_drawdown)))
+
+        return seasonal_behavior
+
+    def build_seasonal_context(self, historical_series):
+
+        seasonal_behavior = self.build_seasonal_behavior(historical_series)
+        returns = historical_series.returns
+        drawdown = historical_series.drawdown
+        liquidity = historical_series.average_dollar_volume
 
         sharpe_comparisons = []
         sortino_comparisons = []
+        liquidity_comparisons = []
+        drawdown_comparisons = []
+        positive_return_comparisons = []
 
         current_date = returns.index[-1]
         current_year = current_date.year
@@ -257,11 +338,23 @@ class HistoricalContextEngine:
 
             current_sortino = self.calculate_sortino(current_period_returns)
 
+            current_period_liquidity = liquidity[liquidity.index.isin(current_period_returns.index)]
+
+            current_period_drawdown = drawdown[drawdown.index.isin(current_period_returns.index)]
+
+            current_positive_return_rate = ((current_period_returns > 0).mean() * 100)
+
             for year_offset in range(1, self.lookback_years + 1):
 
                 historical_year = current_year - year_offset
+
                 historical_end_date = current_date.replace(year=historical_year)
-                historical_returns = self.get_quarter_returns(returns, historical_year, quarter, end_date=historical_end_date)
+
+                historical_returns = self.get_quarter_returns(
+                    returns,
+                    historical_year,
+                    quarter,
+                    end_date=historical_end_date)
 
                 if historical_returns.empty:
                     continue
@@ -270,22 +363,88 @@ class HistoricalContextEngine:
 
                 historical_sortino = self.calculate_sortino(historical_returns)
 
-                sharpe_comparisons.append(SeasonalComparison(
-                    season=quarter,
-                    current_year=current_year,
-                    historical_year=historical_year,
-                    current_value=current_sharpe,
-                    historical_value=historical_sharpe,
-                    difference=(current_sharpe- historical_sharpe)))
+                historical_period_liquidity = liquidity[liquidity.index.isin(historical_returns.index)]
 
-                sortino_comparisons.append(SeasonalComparison(
-                    season=quarter,
-                    current_year=current_year,
-                    historical_year=historical_year,
-                    current_value=current_sortino,
-                    historical_value=historical_sortino,
-                    difference=(current_sortino- historical_sortino)))
+                historical_period_drawdown = drawdown[drawdown.index.isin(historical_returns.index)]
+
+                historical_positive_return_rate = ((historical_returns > 0).mean() * 100)
+
+                current_liquidity = current_period_liquidity.mean()
+                historical_liquidity = historical_period_liquidity.mean()
+
+                current_drawdown = current_period_drawdown.mean()
+                historical_drawdown = historical_period_drawdown.mean()
+
+                sharpe_comparisons.append(
+                    SeasonalComparison(
+                        season=quarter,
+                        current_year=current_year,
+                        historical_year=historical_year,
+                        current_value=current_sharpe,
+                        historical_value=historical_sharpe,
+                        difference=(
+                            current_sharpe - historical_sharpe
+                        )
+                    )
+                )
+
+                sortino_comparisons.append(
+                    SeasonalComparison(
+                        season=quarter,
+                        current_year=current_year,
+                        historical_year=historical_year,
+                        current_value=current_sortino,
+                        historical_value=historical_sortino,
+                        difference=(
+                            current_sortino - historical_sortino
+                        )
+                    )
+                )
+
+                liquidity_comparisons.append(
+                    SeasonalComparison(
+                        season=quarter,
+                        current_year=current_year,
+                        historical_year=historical_year,
+                        current_value=current_liquidity,
+                        historical_value=historical_liquidity,
+                        difference=(
+                            current_liquidity - historical_liquidity
+                        )
+                    )
+                )
+
+                drawdown_comparisons.append(
+                    SeasonalComparison(
+                        season=quarter,
+                        current_year=current_year,
+                        historical_year=historical_year,
+                        current_value=current_drawdown,
+                        historical_value=historical_drawdown,
+                        difference=(
+                            current_drawdown - historical_drawdown
+                        )
+                    )
+                )
+
+                positive_return_comparisons.append(
+                    SeasonalComparison(
+                        season=quarter,
+                        current_year=current_year,
+                        historical_year=historical_year,
+                        current_value=current_positive_return_rate,
+                        historical_value=historical_positive_return_rate,
+                        difference=(
+                            current_positive_return_rate
+                            - historical_positive_return_rate
+                        )
+                    )
+                )
 
         return SeasonalContext(
             sharpe_comparisons=sharpe_comparisons,
-            sortino_comparisons=sortino_comparisons)
+            sortino_comparisons=sortino_comparisons,
+            liquidity_comparisons=liquidity_comparisons,
+            drawdown_comparisons=drawdown_comparisons,
+            positive_return_comparisons=positive_return_comparisons,
+            seasonal_behavior=seasonal_behavior)
