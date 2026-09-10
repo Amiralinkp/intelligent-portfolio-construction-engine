@@ -10,7 +10,6 @@ class HistoricalContext:
 
     # Risk
     volatility_percentile: float
-    drawdown_percentile: float
     atr_percentile: float
 
     # Trend
@@ -18,7 +17,6 @@ class HistoricalContext:
     price_vs_sma_200_percentile: float
 
     # Performance
-    return_percentile: float
     sharpe_percentile: float
     sortino_percentile: float
 

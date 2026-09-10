@@ -20,12 +20,19 @@ class HistoricalContextEngine:
         self.dollar_volume_window = settings.DOLLAR_VOLUME_WINDOW
 
     def analyze(self, asset_df, features: FeatureSet):
-
         historical_series = self.build_feature_series(asset_df)
+
         seasonal_context = self.build_seasonal_context(historical_series)
-        historical_context = self.calculate_percentiles(historical_series, features, seasonal_context)
-        
-        return historical_context
+
+        historical_context = self.calculate_percentiles(
+            historical_series,
+            features,
+            seasonal_context)
+
+        drawdown_episodes = detect_drawdown_episodes(asset_df)
+        drawdown_statistics = calculate_drawdown_statistics(drawdown_episodes)
+
+        return HistoricalAnalysis(historical_context=historical_context, drawdown_statistics=drawdown_statistics)
 
     
     def build_feature_series(self, asset_df):
@@ -141,19 +148,21 @@ class HistoricalContextEngine:
 
         window = 252
         risk_free_rate = 0.02
+
         rolling_mean = returns.rolling(window).mean()
 
         daily_rf = risk_free_rate / 252
-        downside_returns = returns.where(returns < daily_rf)
-        downside_std = downside_returns.rolling(window).std(ddof=0)
+
+        downside_returns = (returns - daily_rf).clip(upper=0)
+
+        downside_deviation = (downside_returns.pow(2).rolling(window).mean().pow(0.5))
 
         annualized_return = rolling_mean * 252
-        annualized_downside_volatility = downside_std * np.sqrt(252)
+        annualized_downside_volatility = downside_deviation * np.sqrt(252)
 
-        rolling_sortino = (annualized_return - risk_free_rate) / annualized_downside_volatility
-        rolling_sortino = rolling_sortino.replace([np.inf, -np.inf],np.nan)
+        rolling_sortino = ((annualized_return - risk_free_rate)/ annualized_downside_volatility)
 
-        return rolling_sortino
+        return rolling_sortino.replace([np.inf, -np.inf], np.nan)
 
 
 
