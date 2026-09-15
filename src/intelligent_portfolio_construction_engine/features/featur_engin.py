@@ -3,7 +3,9 @@ from ta.momentum import RSIIndicator, ROCIndicator
 from ta.volatility import AverageTrueRange
 from ta.trend import MACD
 from intelligent_portfolio_construction_engine.config.setting import Settings
+import pandas as pd
 import numpy as np 
+from intelligent_portfolio_construction_engine.config.benchmarks import get_benchmark
 
 
 class FeatureEngine:
@@ -21,12 +23,14 @@ class FeatureEngine:
         self.sma_short_window = settings.SMA_SHORT_WINDOW
         self.sma_long_window = settings.SMA_LONG_WINDOW
         self.dollar_volume_window = settings.DOLLAR_VOLUME_WINDOW
+        self.momentum_window = settings.MOMENTUM_WINDOW
+        self.beta_window = settings.BETA_WINDOW
         
 
 
 
 
-    def extract_features(self, asset_df):
+    def extract_features(self, asset_df, benchmark_df=None):
 
         daily_ret = asset_df["Close"].pct_change()
         daily_ret = daily_ret.dropna()
@@ -54,8 +58,14 @@ class FeatureEngine:
         price_vs_sma_200 = (price / sma_200) - 1
 
         average_dollar_volume = self._average_dollar_volume(asset_df)
+        momentum_factor = self._momentum_factor(asset_df)
+
+        beta = None
+        if benchmark_df is not None:
+            beta = self._beta(asset_df, benchmark_df)
 
         macd, macd_signal, macd_hist = self._macd_features(asset_df)
+        
         return FeatureSet(
             daily_return=daily_return,
             annual_return=annual_return,
@@ -75,7 +85,30 @@ class FeatureEngine:
             sma_200=sma_200,
             price_vs_sma_50=price_vs_sma_50,
             price_vs_sma_200=price_vs_sma_200,
-            average_dollar_volume=average_dollar_volume)
+            average_dollar_volume=average_dollar_volume,
+            momentum_factor=momentum_factor,
+            beta=beta)
+
+    def _momentum_factor(self, asset_df):
+        close = asset_df["Close"]
+        return close.pct_change(self.momentum_window).iloc[-1]
+
+
+    def _beta(self, asset_df, benchmark_df):
+        asset_returns = asset_df["Close"].pct_change()
+        benchmark_returns = benchmark_df["Close"].pct_change()
+
+        aligned_returns = pd.concat([asset_returns, benchmark_returns], axis=1, join="inner").dropna()
+
+        asset_returns = aligned_returns.iloc[:, 0]
+        benchmark_returns = aligned_returns.iloc[:, 1]
+
+        covariance = asset_returns.rolling(self.beta_window).cov(benchmark_returns)
+        benchmark_variance = benchmark_returns.rolling(self.beta_window).var(ddof=0)
+
+        beta = covariance / benchmark_variance
+
+        return beta.replace([np.inf, -np.inf], np.nan).iloc[-1]
     
     def _daily_return(self, daily_ret):
 

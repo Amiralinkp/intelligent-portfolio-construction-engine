@@ -15,3 +15,5 @@ class Settings:
     MACD_SLOW : int = 26
     MACD_SIGNAL : int = 9
     HISTORICAL_LOOKBACK_YEARS: int = 6
+    BETA_WINDOW: int = 252
+    MOMENTUM_WINDOW: int = 126

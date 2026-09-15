@@ -11,31 +11,38 @@ from intelligent_portfolio_construction_engine.models.seasonal_context import Se
 from intelligent_portfolio_construction_engine.models.historical_analysis import HistoricalAnalysis
 from intelligent_portfolio_construction_engine.analysis.drawdown_analysis import detect_drawdown_episodes
 from intelligent_portfolio_construction_engine.analysis.drawdown_statistics import calculate_drawdown_statistics
-
+from intelligent_portfolio_construction_engine.config.benchmarks import get_benchmark
 
 class HistoricalContextEngine:
 
-    def __init__(self, settings):
+    def __init__(self, settings, provider):
+        self.settings = settings
+        self.provider = provider
         self.lookback_years = settings.HISTORICAL_LOOKBACK_YEARS
         self.dollar_volume_window = settings.DOLLAR_VOLUME_WINDOW
+        self.beta_window = settings.BETA_WINDOW
+        self.momentum_window = settings.MOMENTUM_WINDOW
 
-    def analyze(self, asset_df, features: FeatureSet):
-        historical_series = self.build_feature_series(asset_df)
-
+    def analyze(self, asset_df, features: FeatureSet, asset_class):
+        start_date = asset_df.index.min().strftime("%Y-%m-%d")
+        end_date = asset_df.index.max().strftime("%Y-%m-%d")
+        benchmark_df = self._get_benchmark_data(asset_class=asset_class, start_date=start_date, end_date=end_date)
+        historical_series = self.build_feature_series(asset_df, benchmark_df)
         seasonal_context = self.build_seasonal_context(historical_series)
 
-        historical_context = self.calculate_percentiles(
-            historical_series,
-            features,
-            seasonal_context)
+        historical_context = self.calculate_percentiles(historical_series, features, seasonal_context)
 
         drawdown_episodes = detect_drawdown_episodes(asset_df)
         drawdown_statistics = calculate_drawdown_statistics(drawdown_episodes)
 
         return HistoricalAnalysis(historical_context=historical_context, drawdown_statistics=drawdown_statistics)
 
+    def _get_benchmark_data(self, asset_class, start_date, end_date):
+        benchmark = get_benchmark(asset_class)
+
+        return self.provider.get_data(symbols=[benchmark.symbol], start=start_date, end=end_date)
     
-    def build_feature_series(self, asset_df):
+    def build_feature_series(self, asset_df, benchmark_df):
 
         close = asset_df["Close"]
         high = asset_df["High"]
@@ -43,6 +50,9 @@ class HistoricalContextEngine:
         volume = asset_df["Volume"]
 
         daily_ret = close.pct_change()
+        benchmark_returns = benchmark_df["Close"].pct_change()
+        beta = self.calculate_rolling_beta(daily_ret, benchmark_returns)
+        momentum_factor = self.calculate_momentum_factor(close)
 
         rsi = RSIIndicator(
             close=close,
@@ -88,7 +98,7 @@ class HistoricalContextEngine:
         returns = asset_df["Close"].pct_change().dropna()
         rolling_sharpe = self.rolling_sharpe(returns)
         rolling_sortino = self.rolling_sortino(returns)
-
+        
         return HistoricalFeatureSeries(
             returns=returns,
             rsi=rsi,
@@ -105,7 +115,9 @@ class HistoricalContextEngine:
             macd_hist=macd_hist,
             sharpe_ratio=rolling_sharpe,
             sortino_ratio=rolling_sortino,
-            average_dollar_volume=average_dollar_volume)
+            average_dollar_volume=average_dollar_volume,
+            beta=beta,
+            momentum_factor=momentum_factor)
 
     def calculate_percentiles(self, historical_series, features, seasonal_context):
 
@@ -128,6 +140,27 @@ class HistoricalContextEngine:
             sortino_percentile=sortino_percentile,
             sharpe_percentile=sharpe_percentile,
             seasonal_context=seasonal_context)
+
+    
+    def calculate_rolling_beta(self, asset_returns: pd.Series, benchmark_returns: pd.Series):
+
+        aligned_returns = pd.concat([asset_returns, benchmark_returns],axis=1, join="inner").dropna()
+
+        asset_returns = aligned_returns.iloc[:, 0]
+        benchmark_returns = aligned_returns.iloc[:, 1]
+
+        covariance = asset_returns.rolling(self.beta_window).cov(benchmark_returns)
+
+        benchmark_variance = benchmark_returns.rolling(self.beta_window).var(ddof=0)
+
+        beta = covariance / benchmark_variance
+
+        return beta.replace([np.inf, -np.inf], np.nan)
+
+    
+    def calculate_momentum_factor(self, close):
+
+        return close.pct_change(self.momentum_window)
 
     def rolling_sharpe(self, returns):
 

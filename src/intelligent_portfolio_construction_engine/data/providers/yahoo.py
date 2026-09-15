@@ -1,5 +1,6 @@
 import yfinance as yf
 from intelligent_portfolio_construction_engine.data.interfaces.market_data_provider import MarketDataProvider
+from intelligent_portfolio_construction_engine.config.benchmarks import get_benchmark
 
 
 class YahooProvider(MarketDataProvider):
@@ -25,3 +26,8 @@ class YahooProvider(MarketDataProvider):
         return {
             "sector": info.get("sector"),
             "industry": info.get("industry")}
+
+    def get_benchmark_data(self, asset_class: str, start: str, end: str):
+        benchmark = get_benchmark(asset_class)
+
+        return self.get_data(symbols=[benchmark.symbol], start=start, end=end)

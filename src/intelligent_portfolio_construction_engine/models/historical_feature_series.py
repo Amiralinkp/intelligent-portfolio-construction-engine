@@ -25,3 +25,5 @@ class HistoricalFeatureSeries:
     macd_hist: pd.Series
 
     average_dollar_volume: pd.Series
+    beta: pd.Series
+    momentum_factor: pd.Series

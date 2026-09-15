@@ -16,9 +16,11 @@ class FeatureSet:
     atr: float
     max_drawdown: float
     current_drawdown: float
+    beta: float | None
 
     # Momentum
     rsi: float
+    momentum_factor: float
     roc: float
 
     # Trend
