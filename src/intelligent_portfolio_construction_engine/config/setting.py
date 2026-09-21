@@ -17,3 +17,5 @@ class Settings:
     HISTORICAL_LOOKBACK_YEARS: int = 6
     BETA_WINDOW: int = 252
     MOMENTUM_WINDOW: int = 126
+    CLUSTERING_MIN_K = 2
+    CLUSTERING_MAX_K = 6

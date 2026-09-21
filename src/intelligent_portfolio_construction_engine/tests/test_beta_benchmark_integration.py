@@ -109,7 +109,6 @@ def test_feature_engineering_calculates_beta_from_benchmark():
 
     assert features.beta is not None
     assert np.isfinite(features.beta)
-    print(f"\nFeatureEngine beta: {features.beta}")
 
     assert np.isclose(
         features.beta,
