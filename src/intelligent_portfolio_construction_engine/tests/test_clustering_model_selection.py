@@ -70,10 +70,11 @@ def test_clustering_model_selection(
         exist_ok=True,
     )
 
-    best_result, candidates = run_clustering_models(
+    result = run_clustering_models(
         data=data,
         settings=TestSettings(),
         output_dir=output_dir,
+        
     )
 
     min_k = TestSettings.CLUSTERING_MIN_K
@@ -83,7 +84,7 @@ def test_clustering_model_selection(
         (max_k - min_k + 1) * 3
     )
 
-    assert len(candidates) == expected_candidate_count
+    assert len(result.candidates) == expected_candidate_count
 
     expected_models = {
         "K-Means",
@@ -93,14 +94,14 @@ def test_clustering_model_selection(
 
     actual_models = {
         candidate.model_name
-        for candidate in candidates
+        for candidate in result.candidates
     }
 
     assert actual_models == expected_models
 
     actual_k_values = {
         candidate.n_clusters
-        for candidate in candidates
+        for candidate in result.candidates
     }
 
     expected_k_values = set(
@@ -112,7 +113,7 @@ def test_clustering_model_selection(
 
     assert actual_k_values == expected_k_values
 
-    for candidate in candidates:
+    for candidate in result.candidates:
         assert candidate.metrics.keys() == {
             "silhouette",
             "calinski_harabasz",
@@ -127,7 +128,39 @@ def test_clustering_model_selection(
             candidate.clustering_result.labels
         ) == len(data)
 
-    assert best_result in candidates
+    assert result.cluster_profiles
+
+
+    assert result.cluster_interpretations
+
+
+    assert len(result.cluster_interpretations
+    ) == len(
+    result.cluster_profiles
+
+)
+
+    assert {
+    interpretation.cluster_id
+    for interpretation in result.cluster_interpretations
+
+} == {
+    profile.cluster_id
+    for profile in result.cluster_profiles
+
+}
+
+    assert len(result.cluster_profiles
+    ) == (
+        result.model_selection.n_clusters
+    )
+
+    assert sum(
+        profile.asset_count
+        for profile in result.cluster_profiles
+
+    ) == len(data)
+    assert result.model_selection in result.candidates
 
     expected_visualizations = (
         (max_k - min_k + 1) * 3
@@ -140,3 +173,27 @@ def test_clustering_model_selection(
     assert len(visualization_files) == (
         expected_visualizations
     )
+
+    assert result.asset_cluster_assignments
+
+    assert len(result.asset_cluster_assignments) == len(data)
+
+    assert {
+    assignment.asset
+    for assignment in result.asset_cluster_assignments
+} == {
+    str(asset)
+    for asset in data.index
+}
+
+
+    valid_cluster_ids = {
+    profile.cluster_id
+    for profile in result.cluster_profiles
+
+}
+
+    assert all(
+    assignment.cluster_id in valid_cluster_ids
+    for assignment in result.asset_cluster_assignments
+)
