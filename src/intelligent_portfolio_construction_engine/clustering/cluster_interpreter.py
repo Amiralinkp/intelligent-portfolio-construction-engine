@@ -1,11 +1,7 @@
 from intelligent_portfolio_construction_engine.models.cluster_interpretation import ClusterInterpretation
-from intelligent_portfolio_construction_engine.models.cluster_profile import ClusterProfile
-
-
 
 
 def _relative_level(value, values):
-
     if len(values) == 1:
         return "medium"
 
@@ -20,37 +16,41 @@ def _relative_level(value, values):
 
     return "medium"
 
-    
+
 def interpret_cluster_profiles(profiles):
+    feature_names = {
+        "volatility": "volatility_level",
+        "current_drawdown": "drawdown_level",
+        "cagr": "return_profile",
+        "momentum_factor": "momentum_profile",
+        "beta": "beta_level",
+        "sharpe_ratio": "sharpe_level",
+        "sortino_ratio": "sortino_level",
+    }
 
-    volatility_values = [profile.volatility for profile in profiles]
-
-    current_drawdown_values = [profile.current_drawdown for profile in profiles]
-
-    cagr_values = [profile.cagr for profile in profiles]
-
-    momentum_values = [profile.momentum_factor for profile in profiles]
-
-    beta_values = [profile.beta for profile in profiles]
-
-    sharpe_values = [profile.sharpe_ratio for profile in profiles]
-
-    sortino_values = [profile.sortino_ratio for profile in profiles]
-
+    feature_values = {
+        feature: [
+            profile.median_profile[feature]
+            for profile in profiles
+        ]
+        for feature in feature_names
+    }
 
     interpretations = []
 
     for profile in profiles:
-            
+        levels = {
+            output_name: _relative_level(
+                profile.median_profile[feature],
+                feature_values[feature],
+            )
+            for feature, output_name in feature_names.items()
+        }
+
         interpretation = ClusterInterpretation(
             cluster_id=profile.cluster_id,
-            volatility_level=_relative_level(profile.volatility, volatility_values),
-            drawdown_level=_relative_level(profile.current_drawdown, current_drawdown_values),
-            beta_level=_relative_level(profile.beta, beta_values),
-            return_profile=_relative_level(profile.cagr, cagr_values),
-            momentum_profile=_relative_level(profile.momentum_factor, momentum_values),
-            sharpe_level=_relative_level(profile.sharpe_ratio, sharpe_values),
-            sortino_level=_relative_level(profile.sortino_ratio, sortino_values),)
+            **levels,
+        )
 
         interpretations.append(interpretation)
 
