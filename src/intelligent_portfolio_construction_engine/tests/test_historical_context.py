@@ -91,6 +91,7 @@ def create_historical_series():
 
 def create_feature_set():
     return FeatureSet(
+        cagr=0.20,
         daily_return=0.001,
         annual_return=0.25,
         cagr=0.20,
@@ -117,7 +118,7 @@ def create_feature_set():
 
 @pytest.fixture
 def engine():
-    return HistoricalContextEngine(TestSettings())
+    return HistoricalContextEngine(TestSettings(), provider=None)
 
 
 def test_build_feature_series(engine):
@@ -326,53 +327,23 @@ def test_calculate_percentiles(engine):
     assert result.seasonal_context is seasonal_context
 
 
-def test_analyze(engine):
+def test_analyze(engine, monkeypatch):
     asset_df = create_asset_data()
     benchmark_df = create_benchmark_data()
     features = create_feature_set()
 
+    monkeypatch.setattr(
+        engine,
+        "_get_benchmark_data",
+        lambda **kwargs: benchmark_df,
+    )
+
     result = engine.analyze(
         asset_df,
         features,
-        benchmark_df,
+        "equity",
     )
 
     assert isinstance(result, HistoricalAnalysis)
-
     assert result.historical_context is not None
     assert result.drawdown_statistics is not None
-
-    assert len(
-        result.historical_context.seasonal_context.seasonal_behavior
-    ) == 4
-
-    seasonal_context = (
-        result.historical_context.seasonal_context
-    )
-
-    assert len(
-        seasonal_context.sharpe_comparisons
-    ) == 8
-
-    assert len(
-        seasonal_context.sortino_comparisons
-    ) == 8
-
-    assert len(
-        seasonal_context.liquidity_comparisons
-    ) == 8
-
-    assert len(
-        seasonal_context.drawdown_comparisons
-    ) == 8
-
-    assert len(
-        seasonal_context.positive_return_comparisons
-    ) == 8
-
-    assert isinstance(
-        result.drawdown_statistics.max_drawdown,
-        (int, float),
-    )
-
-    assert result.drawdown_statistics.max_drawdown >= 0

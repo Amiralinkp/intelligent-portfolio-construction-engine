@@ -12,6 +12,7 @@ from intelligent_portfolio_construction_engine.models.historical_analysis import
 from intelligent_portfolio_construction_engine.analysis.drawdown_analysis import detect_drawdown_episodes
 from intelligent_portfolio_construction_engine.analysis.drawdown_statistics import calculate_drawdown_statistics
 from intelligent_portfolio_construction_engine.config.benchmarks import get_benchmark
+from intelligent_portfolio_construction_engine.features.behavioral_snapshots import build_behavioral_snapshots
 
 class HistoricalContextEngine:
 
@@ -79,6 +80,8 @@ class HistoricalContextEngine:
         macd_hist = macd_indicator.macd_diff()
 
         volatility = daily_ret.rolling(252).std(ddof=0)
+        cagr_window = 252
+        cagr = (close / close.shift(cagr_window)) ** (252 / cagr_window) - 1
 
         sma_50 = close.rolling(50).mean()
         sma_200 = close.rolling(200).mean()
@@ -101,6 +104,7 @@ class HistoricalContextEngine:
         
         return HistoricalFeatureSeries(
             returns=returns,
+            cagr=cagr,
             rsi=rsi,
             roc=roc,
             volatility=volatility,

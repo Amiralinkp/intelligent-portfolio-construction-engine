@@ -1,7 +1,11 @@
 from intelligent_portfolio_construction_engine.selection.base_strategy import BaseSelectionStrategy
-
+from intelligent_portfolio_construction_engine.config.policy import PolicyConfig
 
 class BalancedSelectionStrategy(BaseSelectionStrategy):
+
+
+    def __init__(self, policy_config: PolicyConfig):
+        super().__init__(policy_config)
 
 
     def score(self, profile):
