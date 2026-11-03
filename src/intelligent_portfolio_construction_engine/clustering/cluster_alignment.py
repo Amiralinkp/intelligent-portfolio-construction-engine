@@ -147,7 +147,10 @@ class ClusterAlignmentEngine:
         current_profiles: list[ClusterProfile],
         reference_scale: pd.Series,
     ) -> np.ndarray:
-        scale = reference_scale[FEATURE_COLUMNS].to_numpy(dtype=float)
+        scale = reference_scale.loc[list(FEATURE_COLUMNS)].to_numpy(dtype=float)
+
+        if not np.isfinite(scale).all() or (scale <= 0).any():
+            raise ValueError("Reference scale must contain finite positive values.")
 
         previous = np.array(
             [
@@ -165,15 +168,22 @@ class ClusterAlignmentEngine:
             dtype=float,
         )
 
+        if not np.isfinite(previous).all() or not np.isfinite(current).all():
+            raise ValueError("Cluster centroids must contain finite values.")
+
         normalized_previous = previous / scale
         normalized_current = current / scale
 
-        return np.linalg.norm(
+        costs = np.linalg.norm(
             normalized_previous[:, None, :]
             - normalized_current[None, :, :],
             axis=2,
         )
 
+        if not np.isfinite(costs).all():
+            raise ValueError("Cost matrix contains non-finite values.")
+
+        return costs
     @staticmethod
     def _build_threshold_matrices(
         previous_profiles,
@@ -236,13 +246,32 @@ class ClusterAlignmentEngine:
         threshold_99,
     ):
         old_count, new_count = costs.shape
+
+        if threshold_95.shape != costs.shape or threshold_99.shape != costs.shape:
+            raise ValueError("Threshold matrices must match the cost matrix shape.")
+
+        if (
+            not np.isfinite(costs).all()
+            or not np.isfinite(threshold_95).all()
+            or not np.isfinite(threshold_99).all()
+        ):
+            raise ValueError("Assignment inputs must contain finite values.")
+
+        if (
+            (threshold_95 <= 0).any()
+            or (threshold_99 < threshold_95).any()
+        ):
+            raise ValueError("Threshold values must satisfy 0 < threshold_95 <= threshold_99.")
+
         size = old_count + new_count
 
+        if size == 0:
+            return [], []
+
         invalid_cost = 1e9
-        unmatched_penalty = 0.5
+        unmatched_penalty = 0.500001
 
         valid = costs <= threshold_99
-
         normalized_costs = costs / threshold_99
 
         matrix = np.full((size, size), invalid_cost)
@@ -384,43 +413,47 @@ class ClusterAlignmentEngine:
     def _detect_structural_events(overlaps):
         events = []
 
+        minimum_overlap_ratio = 0.10
+
         old_to_new = {}
         new_to_old = {}
 
         for overlap in overlaps:
-            old_to_new.setdefault(overlap.old_cluster_id, set()).add(
-                overlap.new_cluster_id
-            )
-            new_to_old.setdefault(overlap.new_cluster_id, set()).add(
-                overlap.old_cluster_id
-            )
+            if (
+                overlap.old_coverage < minimum_overlap_ratio
+                or overlap.new_coverage < minimum_overlap_ratio
+            ):
+                continue
 
-        for old_id, new_ids in old_to_new.items():
-            if len(new_ids) > 1:
+            old_to_new.setdefault(overlap.old_cluster_id, []).append(overlap)
+            new_to_old.setdefault(overlap.new_cluster_id, []).append(overlap)
+
+        for old_id, related_overlaps in old_to_new.items():
+            if len(related_overlaps) > 1:
                 events.append(
                     ClusterStructuralEvent(
                         event_type="split",
                         old_cluster_ids=(old_id,),
-                        new_cluster_ids=tuple(sorted(new_ids)),
+                        new_cluster_ids=tuple(
+                            sorted(item.new_cluster_id for item in related_overlaps)
+                        ),
                         shared_assets=sum(
-                            item.shared_assets
-                            for item in overlaps
-                            if item.old_cluster_id == old_id
+                            item.shared_assets for item in related_overlaps
                         ),
                     )
                 )
 
-        for new_id, old_ids in new_to_old.items():
-            if len(old_ids) > 1:
+        for new_id, related_overlaps in new_to_old.items():
+            if len(related_overlaps) > 1:
                 events.append(
                     ClusterStructuralEvent(
                         event_type="merge",
-                        old_cluster_ids=tuple(sorted(old_ids)),
+                        old_cluster_ids=tuple(
+                            sorted(item.old_cluster_id for item in related_overlaps)
+                        ),
                         new_cluster_ids=(new_id,),
                         shared_assets=sum(
-                            item.shared_assets
-                            for item in overlaps
-                            if item.new_cluster_id == new_id
+                            item.shared_assets for item in related_overlaps
                         ),
                     )
                 )
